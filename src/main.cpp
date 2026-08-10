@@ -25,26 +25,18 @@ public:
         auto whiteBG = CCLayerColor::create(ccc4(255, 255, 255, 255));
         this->addChild(whiteBG);
 
-        // 2. Imagen de Pou en el centro (usando pouimg.png)
-        // Nota: Geode maneja automáticamente la extensión, "pouimg.png"_spr es correcto.
+        // 2. Imagen de Pou reducida para no desbordar la pantalla
         auto pouSprite = CCSprite::create("pouimg.png"_spr);
         if (pouSprite) {
             pouSprite->setPosition(winSize / 2);
-            // Puedes ajustar la escala si es muy grande o chica
-            pouSprite->setScale(1.0f); 
+            pouSprite->setScale(0.4f); // Reducido a 0.4 para ajustar a pantalla
             this->addChild(pouSprite);
-        } else {
-            FLAlertLayer::create("Error", "No se pudo cargar pouimg.png", "OK")->show();
         }
 
-        // 3. Reproducir la música de Pou (usando pou.mp3)
-        // Usamos playBackgroundMusic para música, o playEffect para sonidos cortos.
-        // FMODAudioEngine::sharedEngine()->playBackgroundMusic("pou.mp3"_spr, true); // true para loop
-        
-        // Para efectos (sonidos cortos):
+        // 3. Audio de Pou
         FMODAudioEngine::sharedEngine()->playEffect("pou.mp3"_spr);
 
-        // 4. Botón de salir (flecha estándar de GD)
+        // 4. Botón de regreso (flecha)
         auto backBtnSprite = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
         auto backButton = CCMenuItemSpriteExtra::create(
             backBtnSprite,
@@ -57,7 +49,6 @@ public:
         menu->setPosition({25.0f, winSize.height - 25.0f});
         this->addChild(menu);
 
-        // Habilitar controles
         this->setTouchEnabled(true);
         this->setKeypadEnabled(true);
 
@@ -65,9 +56,6 @@ public:
     }
 
     void onClose(CCObject* sender) {
-        // Detener la música si se está reproduciendo como background
-        // FMODAudioEngine::sharedEngine()->stopBackgroundMusic();
-        
         this->removeFromParentAndCleanup(true);
     }
 
@@ -80,10 +68,10 @@ class $modify(MyPouMenu, MenuLayer) {
     bool init() {
         if (!MenuLayer::init()) return false;
 
-        // Usamos pouimg.png también para el icono del botón, pero más chico
+        // Botón en el menú principal reducido a icono pequeño
         auto pouSprite = CCSprite::create("pouimg.png"_spr);
         if (pouSprite) {
-            pouSprite->setScale(0.3f); // Escala para que quepa en el menú
+            pouSprite->setScale(0.12f); // Reducido a 0.12 para el menú
             
             auto btn = CCMenuItemSpriteExtra::create(
                 pouSprite,
@@ -91,18 +79,10 @@ class $modify(MyPouMenu, MenuLayer) {
                 menu_selector(MyPouMenu::onPouButton)
             );
 
-            // Intentamos agregarlo al menú inferior
             auto menu = this->getChildByID("bottom-menu");
             if (menu) {
                 menu->addChild(btn);
                 menu->updateLayout();
-            } else {
-                // Si no encontramos el menú inferior, lo ponemos en una posición genérica
-                auto winSize = CCDirector::sharedDirector()->getWinSize();
-                auto genericMenu = CCMenu::create();
-                genericMenu->addChild(btn);
-                genericMenu->setPosition({winSize.width / 2, 50.0f});
-                this->addChild(genericMenu);
             }
         }
 
@@ -111,7 +91,6 @@ class $modify(MyPouMenu, MenuLayer) {
 
     void onPouButton(CCObject* sender) {
         auto layer = PouLayer::create();
-        // ZOrder alto para que la pantalla blanca tape todo
         this->addChild(layer, 100);
     }
 };
