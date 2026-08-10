@@ -1,101 +1,118 @@
-/**
- * Include the Geode headers.
- */
 #include <Geode/Geode.hpp>
+#include <Geode/modify/MenuLayer.hpp>
+#include <fmod.hpp>
 
-/**
- * Brings cocos2d and all Geode namespaces to the current scope.
- */
 using namespace geode::prelude;
 
-/**
- * `$modify` lets you extend and modify GD's classes.
- * To hook a function in Geode, simply $modify the class
- * and write a new function definition with the signature of
- * the function you want to hook.
- *
- * Here we use the overloaded `$modify` macro to set our own class name,
- * so that we can use it for button callbacks.
- *
- * Notice the header being included, you *must* include the header for
- * the class you are modifying, or you will get a compile error.
- *
- * Another way you could do this is like this:
- *
- * struct MyMenuLayer : Modify<MyMenuLayer, MenuLayer> {};
- */
-#include <Geode/modify/MenuLayer.hpp>
-class $modify(MyMenuLayer, MenuLayer) {
-	/**
-	 * Typically classes in GD are initialized using the `init` function, (though not always!),
-	 * so here we use it to add our own button to the bottom menu.
-	 *
-	 * Note that for all hooks, your signature has to *match exactly*,
-	 * `void init()` would not place a hook!
-	*/
-	bool init() {
-		/**
-		 * We call the original init function so that the
-		 * original class is properly initialized.
-		 */
-		if (!MenuLayer::init()) {
-			return false;
-		}
+class PouLayer : public CCLayer {
+public:
+    static PouLayer* create() {
+        auto ret = new PouLayer();
+        if (ret && ret->init()) {
+            ret->autorelease();
+            return ret;
+        }
+        CC_SAFE_DELETE(ret);
+        return nullptr;
+    }
 
-		/**
-		 * You can use methods from the `geode::log` namespace to log messages to the console,
-		 * being useful for debugging and such. See this page for more info about logging:
-		 * https://docs.geode-sdk.org/tutorials/logging
-		*/
-		log::debug("Hello from my MenuLayer::init hook! This layer has {} children.", this->getChildrenCount());
+    bool init() override {
+        if (!CCLayer::init()) return false;
 
-		/**
-		 * See this page for more info about buttons
-		 * https://docs.geode-sdk.org/tutorials/buttons
-		*/
-		auto myButton = CCMenuItemSpriteExtra::create(
-			CCSprite::createWithSpriteFrameName("GJ_likeBtn_001.png"),
-			this,
-			/**
-			 * Here we use the name we set earlier for our modify class.
-			*/
-			menu_selector(MyMenuLayer::onMyButton)
-		);
+        auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-		/**
-		 * Here we access the `bottom-menu` node by its ID, and add our button to it.
-		 * Node IDs are a Geode feature, see this page for more info about it:
-		 * https://docs.geode-sdk.org/tutorials/nodetree
-		*/
-		auto menu = this->getChildByID("bottom-menu");
-		menu->addChild(myButton);
+        // 1. Fondo blanco
+        auto whiteBG = CCLayerColor::create(ccc4(255, 255, 255, 255));
+        this->addChild(whiteBG);
 
-		/**
-		 * The `_spr` string literal operator just prefixes the string with
-		 * your mod id followed by a slash. This is good practice for setting your own node ids.
-		*/
-		myButton->setID("my-button"_spr);
+        // 2. Imagen de Pou en el centro (usando pouimg.png)
+        // Nota: Geode maneja automáticamente la extensión, "pouimg.png"_spr es correcto.
+        auto pouSprite = CCSprite::create("pouimg.png"_spr);
+        if (pouSprite) {
+            pouSprite->setPosition(winSize / 2);
+            // Puedes ajustar la escala si es muy grande o chica
+            pouSprite->setScale(1.0f); 
+            this->addChild(pouSprite);
+        } else {
+            FLAlertLayer::create("Error", "No se pudo cargar pouimg.png", "OK")->show();
+        }
 
-		/**
-		 * We update the layout of the menu to ensure that our button is properly placed.
-		 * This is yet another Geode feature, see this page for more info about it:
-		 * https://docs.geode-sdk.org/tutorials/layouts
-		*/
-		menu->updateLayout();
+        // 3. Reproducir la música de Pou (usando pou.mp3)
+        // Usamos playBackgroundMusic para música, o playEffect para sonidos cortos.
+        // FMODAudioEngine::sharedEngine()->playBackgroundMusic("pou.mp3"_spr, true); // true para loop
+        
+        // Para efectos (sonidos cortos):
+        FMODAudioEngine::sharedEngine()->playEffect("pou.mp3"_spr);
 
-		/**
-		 * We return `true` to indicate that the class was properly initialized.
-		 */
-		return true;
-	}
+        // 4. Botón de salir (flecha estándar de GD)
+        auto backBtnSprite = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
+        auto backButton = CCMenuItemSpriteExtra::create(
+            backBtnSprite,
+            this,
+            menu_selector(PouLayer::onClose)
+        );
 
-	/**
-	 * This is the callback function for the button we created earlier.
-	 * The signature for button callbacks must always be the same,
-	 * return type `void` and taking a `CCObject*`.
-	*/
-	void onMyButton(CCObject*) {
-		FLAlertLayer::create("Geode", "Hola soy pou!", "OK")->show();
-	}
+        auto menu = CCMenu::create();
+        menu->addChild(backButton);
+        menu->setPosition({25.0f, winSize.height - 25.0f});
+        this->addChild(menu);
+
+        // Habilitar controles
+        this->setTouchEnabled(true);
+        this->setKeypadEnabled(true);
+
+        return true;
+    }
+
+    void onClose(CCObject* sender) {
+        // Detener la música si se está reproduciendo como background
+        // FMODAudioEngine::sharedEngine()->stopBackgroundMusic();
+        
+        this->removeFromParentAndCleanup(true);
+    }
+
+    void keyBackClicked() override {
+        onClose(nullptr);
+    }
+};
+
+class $modify(MyPouMenu, MenuLayer) {
+    bool init() {
+        if (!MenuLayer::init()) return false;
+
+        // Usamos pouimg.png también para el icono del botón, pero más chico
+        auto pouSprite = CCSprite::create("pouimg.png"_spr);
+        if (pouSprite) {
+            pouSprite->setScale(0.3f); // Escala para que quepa en el menú
+            
+            auto btn = CCMenuItemSpriteExtra::create(
+                pouSprite,
+                this,
+                menu_selector(MyPouMenu::onPouButton)
+            );
+
+            // Intentamos agregarlo al menú inferior
+            auto menu = this->getChildByID("bottom-menu");
+            if (menu) {
+                menu->addChild(btn);
+                menu->updateLayout();
+            } else {
+                // Si no encontramos el menú inferior, lo ponemos en una posición genérica
+                auto winSize = CCDirector::sharedDirector()->getWinSize();
+                auto genericMenu = CCMenu::create();
+                genericMenu->addChild(btn);
+                genericMenu->setPosition({winSize.width / 2, 50.0f});
+                this->addChild(genericMenu);
+            }
+        }
+
+        return true;
+    }
+
+    void onPouButton(CCObject* sender) {
+        auto layer = PouLayer::create();
+        // ZOrder alto para que la pantalla blanca tape todo
+        this->addChild(layer, 100);
+    }
 };
 
